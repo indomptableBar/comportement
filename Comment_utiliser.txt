@@ -1,0 +1,8 @@
+Sous Windows 11 ouvrir 
+le programme : Windows Powershell ISE
+
+Puis Appuyer sur Ctrl + r
+- Coller le script present et faite F5 ( demarrer le script)
+
+
+Voila le comportement est a adapter en fonction de vos besoin.
