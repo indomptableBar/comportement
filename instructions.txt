@@ -1,0 +1,79 @@
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+function Simulate-RandomClick {
+    $screenWidth = [System.Windows.Forms.SystemInformation]::PrimaryMonitorSize.Width
+    $screenHeight = [System.Windows.Forms.SystemInformation]::PrimaryMonitorSize.Height
+
+    $x = Get-Random -Minimum 0 -Maximum $screenWidth
+    $y = Get-Random -Minimum 0 -Maximum $screenHeight
+
+    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point($x, $y)
+    Start-Sleep -Milliseconds 200
+
+    # Simuler clic gauche
+    $signature = @"
+    [DllImport("user32.dll",CharSet=CharSet.Auto, CallingConvention=CallingConvention.StdCall)]
+    public static extern void mouse_event(long dwFlags, long dx, long dy, long cButtons, long dwExtraInfo);
+"@
+    Add-Type -MemberDefinition $signature -Name "MouseEvent" -Namespace "Win32Functions"
+
+    $mouseEvent = [Win32Functions.MouseEvent]
+    $MOUSEEVENTF_LEFTDOWN = 0x02
+    $MOUSEEVENTF_LEFTUP = 0x04
+
+    $mouseEvent::mouse_event($MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+    Start-Sleep -Milliseconds 50
+    $mouseEvent::mouse_event($MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+
+    Write-Host "$(Get-Date -Format 'HH:mm:ss') - Clic à $x x $y"
+}
+
+function Open-Close-Edge {
+    Write-Host "$(Get-Date -Format 'HH:mm:ss') - Ouverture de Microsoft Edge vers www.google.fr"
+
+    # Capturer les processus Edge avant l'ouverture
+    $before = Get-Process -Name "msedge" -ErrorAction SilentlyContinue
+
+    # Ouvrir une nouvelle fenêtre Edge avec le site
+    Start-Process "msedge.exe" -ArgumentList "--new-window https://www.google.fr"
+    Start-Sleep -Seconds 3
+
+    # Capturer les processus Edge après ouverture
+    $after = Get-Process -Name "msedge" -ErrorAction SilentlyContinue
+
+    # Identifier les nouveaux processus (ouverts juste maintenant)
+    $newEdges = $after | Where-Object { $before -notcontains $_ }
+
+    if ($newEdges.Count -gt 0) {
+        Write-Host "$(Get-Date -Format 'HH:mm:ss') - Fermeture de la nouvelle fenêtre Edge..."
+        foreach ($proc in $newEdges) {
+            try {
+                Stop-Process -Id $proc.Id -Force
+                Write-Host "$(Get-Date -Format 'HH:mm:ss') - Processus Edge (ID=$($proc.Id)) fermé."
+            } catch {
+                Write-Host "$(Get-Date -Format 'HH:mm:ss') - Échec fermeture processus ID=$($proc.Id) : $_"
+            }
+        }
+    } else {
+        Write-Host "$(Get-Date -Format 'HH:mm:ss') - Aucun nouveau processus Edge détecté à fermer."
+    }
+}
+
+# ========== MAIN LOOP ==========
+
+Start-Teams
+
+$counter = 0
+
+while ($true) {
+    Simulate-RandomClick
+
+    $counter++
+    if ($counter -ge 6) {
+        Open-Close-Edge
+        $counter = 0
+    }
+
+    Start-Sleep -Seconds 10
+}
